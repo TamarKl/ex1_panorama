@@ -42,16 +42,10 @@ class Solution:
         vxy = np.multiply(np.transpose(np.array([v, ] * 3)), xy)
         A_u = np.concatenate((-xy, np.zeros((N, 3)), uxy), axis=1)
         A_v = np.concatenate((np.zeros((N, 3)), -xy, vxy), axis=1)
-        A_u_doubled = np.zeros((2 * N, 9))
-        A_v_doubled = np.zeros((2 * N, 9))
+        A = np.zeros((2 * N, 9))
         for i in range(0, N):
-            A_u_doubled[2 * i] = A_u[i]
-            A_u_doubled[2 * i + 1] = A_u[i]
-            A_v_doubled[2 * i] = A_v[i]
-            A_v_doubled[2 * i + 1] = A_v[i]
-        A_u_doubled[1:(2 * N):2] = 0
-        A_v_doubled[0:(2 * N):2] = 0
-        A = A_u_doubled + A_v_doubled
+            A[2 * i] = A_u[i]
+            A[2 * i + 1] = A_v[i]
 
         AtA = np.dot(np.transpose(A), A)
         _, v = np.linalg.eigh(AtA)
@@ -83,9 +77,19 @@ class Solution:
         Returns:
             The forward homography of the source image to its destination.
         """
-        # return new_image
-        """INSERT YOUR CODE HERE"""
-        pass
+        #TODO types
+        def get_new_xy(homograpy: np.ndarray, src_x, src_y):
+            dst_u_v = homography.dot(np.array([src_x, src_y, 1]))
+            dst_u_v = dst_u_v / dst_u_v[-1]
+            return round(dst_u_v[0]), round(dst_u_v[1]) 
+            
+        dst_image = np.zeros(dst_image_shape, dtype=np.uint8)
+        for i in range(len(src_image)):
+            for j in range(len(src_image[0])):
+                y, x = get_new_xy(homography, j, i)
+                if x >=0 and x < dst_image_shape[0] and y >=0 and y < dst_image_shape[1]:
+                    dst_image[x][y] = src_image[i][j]
+        return dst_image
 
     @staticmethod
     def compute_forward_homography_fast(
@@ -114,10 +118,25 @@ class Solution:
         Returns:
             The forward homography of the source image to its destination.
         """
-        # return new_image
-        """INSERT YOUR CODE HERE"""
-        pass
-
+        src_image_shape = src_image.shape
+        H = src_image_shape[0]
+        W = src_image_shape[1]
+        dst_image = np.zeros(dst_image_shape, dtype=np.uint8)
+        temp = np.full((H), 1)
+        mesh = np.array([
+            np.concatenate([i*temp for i in range(W)]),        # [0,0,0,0,....1,1,1,1,...W-1,W-1,W-1,W-1]
+            np.concatenate([range(H) for i in range(W)]),      # [0,1,2,3,...H-1,0,1,2,3...H-1,0,1,2,3,...H-1]
+            np.full((H*W), 1)])                                # [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        dst_mesh = homography.dot(mesh)
+        dst_mesh = dst_mesh / dst_mesh[-1]
+        dst_mesh = (np.rint(dst_mesh)).astype(int)
+        for i in range(H):
+            for j in range(W):
+                y, x, _ = dst_mesh[:, H*j+i]
+                if x >=0 and x < dst_image_shape[0] and y >=0 and y < dst_image_shape[1]:
+                    dst_image[x][y] = src_image[i][j]
+        return dst_image
+        
     @staticmethod
     def test_homography(homography: np.ndarray,
                         match_p_src: np.ndarray,
@@ -143,9 +162,20 @@ class Solution:
             inliers). In edge case where the number of inliers is zero,
             return dist_mse = 10 ** 9.
         """
-        # return fit_percent, dist_mse
-        """INSERT YOUR CODE HERE"""
-        pass
+        N = len(match_p_src[0])
+        h_uv_src = np.vstack([match_p_src, np.ones(N)])
+        h_uv_dst = homography.dot(h_uv_src)
+        h_uv_dst = h_uv_dst / h_uv_dst[-1]
+        h_uv_dst = (np.rint(h_uv_dst)).astype(int)
+        num_inliers = 0
+        sum_square_errors = 0
+        for i in range(N):
+            if (abs(match_p_dst[0][i] - h_uv_dst[0][i]) + abs(match_p_dst[1][i] - h_uv_dst[1][i]) <= max_err):
+                num_inliers += 1
+                sum_square_errors += (abs(match_p_dst[0][i] - h_uv_dst[0][i]) + abs(match_p_dst[1][i] - h_uv_dst[1][i]))**2
+        if num_inliers == 0:
+            return 0, 10**9
+        return num_inliers / N, sum_square_errors / num_inliers
 
     @staticmethod
     def meet_the_model_points(homography: np.ndarray,
@@ -172,10 +202,21 @@ class Solution:
             The second entry is the matching points form the destination
             image (shape 2xD; D as above).
         """
-        # return mp_src_meets_model, mp_dst_meets_model
-        """INSERT YOUR CODE HERE"""
-        pass
-
+        N = len(match_p_src[0])
+        h_uv_src = np.vstack([match_p_src, np.ones(N)])
+        h_uv_dst = homography.dot(h_uv_src)
+        h_uv_dst = h_uv_dst / h_uv_dst[-1]
+        h_uv_dst = (np.rint(h_uv_dst)).astype(int)
+        mp_src_meets_model = np.zeros((2,N), dtype=np.int)
+        mp_dst_meets_model = np.zeros((2,N), dtype=np.int)
+        inliers_found = 0
+        for i in range(N):
+            if (abs(match_p_dst[0][i] - h_uv_dst[0][i]) + abs(match_p_dst[1][i] - h_uv_dst[1][i]) <= max_err):
+                mp_src_meets_model[:, inliers_found] = match_p_src[:, i]
+                mp_dst_meets_model[:, inliers_found] = match_p_dst[:, i]
+                inliers_found += 1
+        return mp_src_meets_model[:, 0:inliers_found], mp_dst_meets_model[:, 0:inliers_found]
+        
     def compute_homography(self,
                            match_p_src: np.ndarray,
                            match_p_dst: np.ndarray,
@@ -195,20 +236,34 @@ class Solution:
             homography: Projective transformation matrix from src to dst.
         """
         # # use class notations:
-        # w = inliers_percent
-        # # t = max_err
+        w = inliers_percent
+        t = max_err
         # # p = parameter determining the probability of the algorithm to
         # # succeed
-        # p = 0.99
+        p = 0.99
         # # the minimal probability of points which meets with the model
-        # d = 0.5
+        d = 0.5
         # # number of points sufficient to compute the model
-        # n = 4
+        n = 4
         # # number of RANSAC iterations (+1 to avoid the case where w=1)
-        # k = int(np.ceil(np.log(1 - p) / np.log(1 - w ** n))) + 1
-        # return homography
-        """INSERT YOUR CODE HERE"""
-        pass
+        k = int(np.ceil(np.log(1 - p) / np.log(1 - w ** n))) + 1
+        
+        N = match_p_src.shape[1]
+        min_dist_mse = 10**9
+        best_homography = None
+        for i in range(k):
+            indices = sample(range(N), n)
+            subset_match_p_src = np.take(match_p_src, indices, axis=1)
+            subset_match_p_dst = np.take(match_p_dst, indices, axis=1)
+            homography = Solution.compute_homography_naive(subset_match_p_src, subset_match_p_dst)
+            src_inliers, dst_inliers = Solution.meet_the_model_points(homography, match_p_src, match_p_dst, t)
+            if ((1.0*src_inliers.shape[1])/N) >= d:
+                homography = Solution.compute_homography_naive(src_inliers, dst_inliers)
+                _, dist_mse = Solution.test_homography(homography, src_inliers, dst_inliers, t)
+                if dist_mse < min_dist_mse:
+                    min_dist_mse = dist_mse
+                    best_homography = homography
+        return best_homography
 
     @staticmethod
     def compute_backward_mapping(
