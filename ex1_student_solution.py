@@ -292,8 +292,35 @@ class Solution:
         """
 
         # return backward_warp
-        """INSERT YOUR CODE HERE"""
-        pass
+        x = np.linspace(0, dst_image_shape[1]-1, dst_image_shape[1])
+        y = np.linspace(0, dst_image_shape[0]-1, dst_image_shape[0])
+ 
+        xi, yi = np.meshgrid(x.astype(np.int32), y.astype(np.int32), indexing='ij')
+        xi_flattern = xi.flatten()
+        yi_flattern = yi.flatten()
+        ones_param = np.ones_like(xi_flattern)
+
+        dest_mesh = np.array([xi_flattern, yi_flattern, ones_param])
+        dest_h = backward_projective_homography @ dest_mesh
+        dest_c = dest_h / dest_h[2]
+
+
+        x_src = np.linspace(0, src_image.shape[1]-1, src_image.shape[1])
+        y_src = np.linspace(0, src_image.shape[0]-1, src_image.shape[0])
+ 
+        xi_src, yi_src = np.meshgrid(x_src.astype(np.int32), y_src.astype(np.int32), indexing='ij')
+        xi_src_flattern = xi_src.flatten()
+        yi_src_flattern = yi_src.flatten()
+
+        src_mesh = np.array([xi_src_flattern, yi_src_flattern])
+        print (src_mesh.shape)
+        src_values = src_image.T.reshape(3, -1)
+        print(src_values.shape)
+
+        inter_src = griddata(src_mesh.T, src_values.T, dest_c[:2].T, method='cubic')
+        ret_image = inter_src.reshape(dst_image_shape[0], dst_image_shape[1],3).astype(np.unit8)
+        return ret_image
+
 
     @staticmethod
     def find_panorama_shape(src_image: np.ndarray,
