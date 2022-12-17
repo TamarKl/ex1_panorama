@@ -301,7 +301,7 @@ class Solution:
         ones_param = np.ones_like(xi_flattern)
 
         dest_mesh = np.array([xi_flattern, yi_flattern, ones_param])
-        dest_h = backward_projective_homography.dot(dest_mesh)
+        dest_h = backward_projective_homography @ dest_mesh
         dest_c = dest_h / dest_h[2]
 
 
