@@ -137,6 +137,20 @@ def main():
     print('Naive Homography Test {:5.4f} sec'.format(toc(tt)))
     print([fit_percent, dist_mse])
     """
+    backward_homography = solution.compute_homography(match_p_dst, match_p_src,
+                                                      inliers_percent,
+                                                      max_err=25)
+    img = solution.compute_backward_mapping(
+        backward_projective_homography=backward_homography,
+                                      src_image=src_img,
+                                      dst_image_shape=dst_img.shape)
+    plt.figure()
+    import numpy as np
+    student_backward_warp_img = plt.imshow(img.astype(np.uint8))
+    plt.title('Backward warp example')
+    plt.show()
+    input()
+    
     # Compute RANSAC homography
     tt = tic()
     ransac_homography = solution.compute_homography(match_p_src,

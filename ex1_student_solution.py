@@ -294,7 +294,6 @@ class Solution:
         # return backward_warp
         x = np.linspace(0, dst_image_shape[1]-1, dst_image_shape[1])
         y = np.linspace(0, dst_image_shape[0]-1, dst_image_shape[0])
- 
         xi, yi = np.meshgrid(x.astype(np.int32), y.astype(np.int32), indexing='ij')
         xi_flattern = xi.flatten()
         yi_flattern = yi.flatten()
@@ -313,12 +312,9 @@ class Solution:
         yi_src_flattern = yi_src.flatten()
 
         src_mesh = np.array([xi_src_flattern, yi_src_flattern])
-        print (src_mesh.shape)
         src_values = src_image.T.reshape(3, -1)
-        print(src_values.shape)
-
         inter_src = griddata(src_mesh.T, src_values.T, dest_c[:2].T, method='cubic')
-        ret_image = inter_src.reshape(dst_image_shape[0], dst_image_shape[1],3).astype(np.unit8)
+        ret_image = inter_src.reshape(dst_image_shape[0], dst_image_shape[1],3).astype(np.uint8)
         return ret_image
 
 
@@ -410,10 +406,14 @@ class Solution:
             A new homography which includes the backward homography and the
             translation.
         """
-        # return final_homography
-        """INSERT YOUR CODE HERE"""
-        pass
-
+        dx = -pad_left
+        dy = -pad_up
+        translation = np.identity(3)
+        translation[0][-1] = dx
+        translation[1][-1] = dy
+        final_homography = backward_homography.dot(translation)
+        return final_homography
+        
     def panorama(self,
                  src_image: np.ndarray,
                  dst_image: np.ndarray,
