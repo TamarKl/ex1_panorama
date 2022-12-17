@@ -459,7 +459,6 @@ class Solution:
                                                     match_p_dst,
                                                     inliers_percent,
                                                     max_err)
-        print("panorama ransac", ransac_homography)
         panorama_rows_num, panorama_cols_num, pad = Solution.find_panorama_shape(
                                                     src_image,
                                                     dst_image,
@@ -468,12 +467,10 @@ class Solution:
                                                     match_p_src,
                                                     inliers_percent,
                                                     max_err)
-        print(backward_homography @ np.array((1,1,1)))
         trans_backwards_homography = Solution.add_translation_to_backward_homography(
                                                     backward_homography,
                                                     pad.pad_left,
                                                     pad.pad_up)
-        print(backward_homography @ np.array((1+pad.pad_up,1+pad.pad_left,1)))
         backward_mapping = Solution.compute_backward_mapping(trans_backwards_homography,
                                                     src_image,
                                                     (panorama_rows_num, panorama_cols_num, 3))
