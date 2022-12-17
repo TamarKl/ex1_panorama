@@ -301,7 +301,7 @@ class Solution:
         ones_param = np.ones_like(xi_flattern)
 
         dest_mesh = np.array([xi_flattern, yi_flattern, ones_param])
-        dest_h = np.linalg.inv(backward_projective_homography).dot(dest_mesh)
+        dest_h = backward_projective_homography.dot(dest_mesh)
         dest_c = dest_h / dest_h[2]
 
 
@@ -408,10 +408,14 @@ class Solution:
             A new homography which includes the backward homography and the
             translation.
         """
-        # return final_homography
-        """INSERT YOUR CODE HERE"""
-        pass
-
+        dx = -pad_left
+        dy = -pad_up
+        translation = np.identity(3)
+        translation[0][-1] = dx
+        translation[1][-1] = dy
+        final_homography = backward_homography.dot(translation)
+        return final_homography
+        
     def panorama(self,
                  src_image: np.ndarray,
                  dst_image: np.ndarray,
@@ -451,6 +455,35 @@ class Solution:
             A panorama image.
 
         """
-        # return np.clip(img_panorama, 0, 255).astype(np.uint8)
-        """INSERT YOUR CODE HERE"""
-        pass
+        ransac_homography = Solution.compute_homography(self, match_p_src,
+                                                    match_p_dst,
+                                                    inliers_percent,
+                                                    max_err)
+        print("panorama ransac", ransac_homography)
+        panorama_rows_num, panorama_cols_num, pad = Solution.find_panorama_shape(
+                                                    src_image,
+                                                    dst_image,
+                                                    ransac_homography)
+        backward_homography = Solution.compute_homography(self, match_p_dst,
+                                                    match_p_src,
+                                                    inliers_percent,
+                                                    max_err)
+        print(backward_homography @ np.array((1,1,1)))
+        trans_backwards_homography = Solution.add_translation_to_backward_homography(
+                                                    backward_homography,
+                                                    pad.pad_left,
+                                                    pad.pad_up)
+        print(backward_homography @ np.array((1+pad.pad_up,1+pad.pad_left,1)))
+        backward_mapping = Solution.compute_backward_mapping(trans_backwards_homography,
+                                                    src_image,
+                                                    (panorama_rows_num, panorama_cols_num, 3))
+        panorama_shape = (dst_image.shape[0]+pad.pad_up+pad.pad_down+1, dst_image.shape[1]+pad.pad_left+pad.pad_right+1, 3)
+        img_panorama = np.zeros(panorama_shape, dtype=np.uint8)
+  
+        # embed src image in panorama
+        for i in range(panorama_rows_num):
+            for j in range(panorama_cols_num):
+                img_panorama[i][j] = backward_mapping[i][j]
+        # embed dst image in panorama
+        img_panorama[pad.pad_up:pad.pad_up+dst_image.shape[0], pad.pad_left:pad.pad_left+dst_image.shape[1],:] = dst_image
+        return img_panorama
