@@ -301,7 +301,7 @@ class Solution:
         ones_param = np.ones_like(xi_flattern)
 
         dest_mesh = np.array([xi_flattern, yi_flattern, ones_param])
-        dest_h = backward_projective_homography @ dest_mesh
+        dest_h = np.linalg.inv(backward_projective_homography).dot(dest_mesh)
         dest_c = dest_h / dest_h[2]
 
 
@@ -312,14 +312,12 @@ class Solution:
         xi_src_flattern = xi_src.flatten()
         yi_src_flattern = yi_src.flatten()
 
-        src_mesh = np.array([xi_src_flattern, yi_src_flattern])
-        print (src_mesh.shape)
+        src_mesh = np.array([xi_src_flattern, yi_src_flattern], dtype=np.int32)
         src_values = src_image.T.reshape(3, -1)
-        print(src_values.shape)
 
-        inter_src = griddata(src_mesh.T, src_values.T, dest_c[:2].T, method='cubic')
-        ret_image = inter_src.reshape(dst_image_shape[0], dst_image_shape[1],3).astype(np.unit8)
-        return ret_image
+        inter_src = griddata(src_mesh.T, src_values.T, dest_c[:2].T, method='cubic', fill_value=0)
+        ret_image = inter_src.reshape((dst_image_shape[0], dst_image_shape[1],3), order='F')
+        return np.array(ret_image, np.int32)
 
 
     @staticmethod
